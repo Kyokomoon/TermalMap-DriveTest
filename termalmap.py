@@ -9,16 +9,21 @@ import json
 
 # change these to change how detailed the generated image is
 # (1000x1000 is good, but very slow)
-MAX_X=100
-MAX_Y=100
+MAX_X=256
+MAX_Y=256
+
 
 MAX_LAT = 55.0388235
-MIN_LAT = 54.9693
+MIN_LAT = 55.007120
+#MAX_LAT = 55.029373
+#MIN_LAT = 54.997690
+
 MAX_LON = 83.0272901
-MIN_LON = 82.8765452
+MIN_LON = 82.911715
+#MAX_LON = 82.983508
+#MIN_LON = 82.915583
 
-
-DRAW_DOTS=False
+DRAW_DOTS=True
 
 output_dir = "out/"
 
@@ -460,6 +465,10 @@ def absolute_rsrp_single(pricem, lat, lon):
 
 
 
+def average(priced_points):
+    averaged_points = []
+    return averaged_points
+    
 def start(fname):
     print("loading data...")
    # priced_points, slope, y_intercept = load_prices(fname)
@@ -492,6 +501,9 @@ def start(fname):
 
     out_fname = output_dir + "itog" + ".phantom." + str(MAX_X)
     I.save(out_fname + ".png", "PNG")
+
+
+    
 
 
 with open('data/thermalmapdataall.json', 'r') as f:
