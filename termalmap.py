@@ -28,7 +28,7 @@ DRAW_DOTS=True
 output_dir = "out/"
 
 # at what distance should we stop making predctions?
-IGNORE_DIST=0.002
+IGNORE_DIST=0.001
 
 def pixel_to_ll(x,y):
     delta_lat = MAX_LAT-MIN_LAT
@@ -467,23 +467,34 @@ def absolute_rsrp_single(pricem, lat, lon):
 
 def average(priced_points):
     averaged_points = []
+    summ = 0
+    point_count = 5
+    for i in range(len(priced_points)):
+        summ += priced_points[i][0]
+        if i%point_count==0:
+            sred = summ/point_count
+            point = priced_points[i-int(point_count/2)]
+            point[0] = sred
+            averaged_points.append(point)
+            summ = 0
     return averaged_points
     
 def start(fname):
     print("loading data...")
-   # priced_points, slope, y_intercept = load_prices(fname)
+   
     priced_points = []
     for item in fname:
         if int(item['rsrp']) <= -60 and int(item['rsrp']) >= -125:
-            priced_points.append((int(item['rsrp']), float(item['latitude']), float(item['longitude'])))
+            priced_points.append([int(item['rsrp']), float(item['latitude']), float(item['longitude'])])
 
+    print(len(priced_points))    
+    priced_points = average(priced_points)
     print("pricing all the points...")
     prices = {}
     for x in range(MAX_X):
         print("  %s/%s" % (x, MAX_X))
         for y in range(MAX_Y):
             lat, lon = pixel_to_ll(x,y)
-            #prices[x,y] = absolute_rsrp_single(priced_points, lat, lon)
             prices[x,y] = gaussian(priced_points, lat, lon)
 
     # color regions by price
