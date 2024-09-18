@@ -9,19 +9,20 @@ import json
 
 # change these to change how detailed the generated image is
 # (1000x1000 is good, but very slow)
-MAX_X=256
-MAX_Y=256
+MAX_X=512
+MAX_Y=512
 
 
+#MAX_LAT = 55.0388235
+#MIN_LAT = 55.007120
 MAX_LAT = 55.0388235
-MIN_LAT = 55.007120
-#MAX_LAT = 55.029373
-#MIN_LAT = 54.997690
+MIN_LAT = 54.9693
 
+#MAX_LON = 83.0272901
+#MIN_LON = 82.911715
 MAX_LON = 83.0272901
-MIN_LON = 82.911715
-#MAX_LON = 82.983508
-#MIN_LON = 82.915583
+MIN_LON = 82.8765452
+
 
 DRAW_DOTS=True
 
@@ -336,23 +337,30 @@ magma_data = [[0.001462, 0.000466, 0.013866],
 
 # costs of 2br units
 buckets = [
-    9500,
-    8400,
-    7300,
-    6200,
-    6100,
-    6000,
-    4500,
-    4000,
-    3800,
-    3400,
-    3000,
-    2800,
-    2200,
-    2100,
-    1900,
-    1500,
-    1400
+    40,
+    20,
+    10,
+    -10,
+    -20,
+    -30,
+    -41,
+    -50,
+    -51,
+    -60,
+    -61,
+    -70,
+    -71,
+    -80,
+    -81,
+    -90,
+    -91,
+    -100,
+    -101,
+    -110,
+    -111,
+    -120,
+    -121,
+    -130
     ]
 
 colors = []
@@ -399,30 +407,12 @@ def gaussian(prices, lat, lon, ignore=(0.001, 0.002)):
     # don't display any averages that don't take into account at least five data points with significant weight
     if c < 5:
         return None
-
     if num/dnm >= -40:
-        return 6000
-    elif num/dnm < -41 and num/dnm >= -50:
-        return 4500
-    elif num/dnm < -51 and num/dnm >= -60:
-        return 4000
-    elif num/dnm < -61 and num/dnm >= -70:
-        return 3800
-    elif num/dnm < -71 and num/dnm >= -80:
-        return 3400
-    elif num/dnm < -81 and num/dnm >= -90:
-        return 3000
-    elif num/dnm < -91 and num/dnm >= -100:
-        return 2800
-    elif num/dnm < -101 and num/dnm >= -110:
-        return 2200
-    elif num/dnm < -111 and num/dnm >= -120:
-        return 2100
-    elif num/dnm < -121 and num/dnm >= -130:
-        return 1900
+        return -40
+    elif num/dnm <= -130:
+        return -130
     else:
-        return 1500
-   # return num/dnm
+        return num/dnm
 
 def absolute_rsrp_single(pricem, lat, lon):
     a = 0
@@ -468,7 +458,7 @@ def absolute_rsrp_single(pricem, lat, lon):
 def average(priced_points):
     averaged_points = []
     summ = 0
-    point_count = 5
+    point_count = 3
     for i in range(len(priced_points)):
         summ += priced_points[i][0]
         if i%point_count==0:
