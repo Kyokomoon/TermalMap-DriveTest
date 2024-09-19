@@ -9,8 +9,8 @@ from src.getData import create_point_for_draw
 
 # change these to change how detailed the generated image is
 # (1000x1000 is good, but very slow)
-MAX_X=512
-MAX_Y=512
+MAX_X=100
+MAX_Y=100
 
 
 #MAX_LAT = 55.0388235
@@ -27,6 +27,7 @@ MIN_LON = 82.8765452
 DRAW_DOTS=False
 TAKE_DATA_FROM_GO=True
 IGNORE_MAX_MIN_LAT_LON=True
+AVAREGE_DATA=False
 
 output_dir = "out/"
 
@@ -475,14 +476,19 @@ def start(fname):
     print("loading data...")
    
     
-    priced_points = fname
+    priced_points = []
     
-    #for item in fname:
-    #    if int(item['rsrp']) <= -60 and int(item['rsrp']) >= -125:
-    #        priced_points.append([int(item['rsrp']), float(item['latitude']), float(item['longitude'])])
-
-    print(len(priced_points))    
-    #priced_points = average(priced_points)
+    if TAKE_DATA_FROM_GO:
+        priced_points = fname
+    else:
+        for item in fname:
+            if int(item['rsrp']) <= -60 and int(item['rsrp']) >= -125:
+                priced_points.append([int(item['rsrp']), float(item['latitude']), float(item['longitude'])])
+    
+    print("Количестов точек= " , len(priced_points)) 
+    #Усреднение точек
+    if AVAREGE_DATA:
+        priced_points = average(priced_points)
     print("pricing all the points...")
     prices = {}
     for x in range(MAX_X):
