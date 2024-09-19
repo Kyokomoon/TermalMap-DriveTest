@@ -3,7 +3,7 @@ import sys
 import math
 import numpy
 import json
-
+from src.getData import create_point_for_draw
 # set boundaries in query_padmapper
 #from query_padmapper import MAX_LAT, MAX_LON, MIN_LAT, MIN_LON
 
@@ -24,7 +24,9 @@ MAX_LON = 83.0272901
 MIN_LON = 82.8765452
 
 
-DRAW_DOTS=True
+DRAW_DOTS=False
+TAKE_DATA_FROM_GO=True
+IGNORE_MAX_MIN_LAT_LON=True
 
 output_dir = "out/"
 
@@ -472,13 +474,15 @@ def average(priced_points):
 def start(fname):
     print("loading data...")
    
-    priced_points = []
-    for item in fname:
-        if int(item['rsrp']) <= -60 and int(item['rsrp']) >= -125:
-            priced_points.append([int(item['rsrp']), float(item['latitude']), float(item['longitude'])])
+    
+    priced_points = fname
+    
+    #for item in fname:
+    #    if int(item['rsrp']) <= -60 and int(item['rsrp']) >= -125:
+    #        priced_points.append([int(item['rsrp']), float(item['latitude']), float(item['longitude'])])
 
     print(len(priced_points))    
-    priced_points = average(priced_points)
+    #priced_points = average(priced_points)
     print("pricing all the points...")
     prices = {}
     for x in range(MAX_X):
@@ -504,9 +508,14 @@ def start(fname):
     I.save(out_fname + ".png", "PNG")
 
 
-    
+if TAKE_DATA_FROM_GO:
+    data, max_LAT, max_LON, min_LAT, min_LON = create_point_for_draw()
+    if IGNORE_MAX_MIN_LAT_LON:
+        MAX_LAT, MAX_LON, MIN_LAT, MIN_LON = max_LAT, max_LON, min_LAT, min_LON
+        
+else:
+    with open('data/thermalmapdataall.json', 'r') as f:
+        data = json.load(f)
 
 
-with open('data/thermalmapdataall.json', 'r') as f:
-    data = json.load(f)
 start(data)
