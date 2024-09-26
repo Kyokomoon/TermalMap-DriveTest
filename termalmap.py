@@ -472,16 +472,18 @@ def average(priced_points):
             summ = 0
     return averaged_points
     
-def start(fname):
+def start(data):
     print("loading data...")
    
-    
+     
+        
     priced_points = []
     
     if TAKE_DATA_FROM_GO:
-        priced_points = fname
+        priced_points = data['ALL']
+        
     else:
-        for item in fname:
+        for item in data:
             if int(item['rsrp']) <= -60 and int(item['rsrp']) >= -125:
                 priced_points.append([int(item['rsrp']), float(item['latitude']), float(item['longitude'])])
     
@@ -491,33 +493,77 @@ def start(fname):
         priced_points = average(priced_points)
     print("pricing all the points...")
     prices = {}
+    prices_Beeline = {}
+    prices_Mts = {}
+    prices_Yota = {}
+    prices_Megafon = {}
     for x in range(MAX_X):
         print("  %s/%s" % (x, MAX_X))
         for y in range(MAX_Y):
             lat, lon = pixel_to_ll(x,y)
             prices[x,y] = gaussian(priced_points, lat, lon)
+            if TAKE_DATA_FROM_GO:
+                if len(data['Beeline']) > 0: 
+                    prices_Beeline[x,y] = gaussian(data['Beeline'], lat, lon)
+                if len(data['Mts']) > 0:
+                    prices_Mts[x,y] = gaussian(data['Mts'], lat, lon)
+                if len(data['Yota']) > 0:
+                    prices_Yota[x,y] = gaussian(data['Yota'], lat, lon)
+                if len(data['Megafon']) > 0:
+                    prices_Megafon[x,y] = gaussian(data['Megafon'], lat, lon)
+                
+                
+                
+                
 
     # color regions by price
-    I = Image.new('RGBA', (MAX_X, MAX_Y))
-    IM = I.load()
+    All_I = Image.new('RGBA', (MAX_X, MAX_Y))
+    AllM = All_I.load()
+    Beeline_I = Image.new('RGBA', (MAX_X, MAX_Y))
+    BeelineM = Beeline_I.load()
+    Mts_I = Image.new('RGBA', (MAX_X, MAX_Y))
+    MtsM = Mts_I.load()
+    Yota_I = Image.new('RGBA', (MAX_X, MAX_Y))
+    YotaM = Yota_I.load()
+    Megafon_I = Image.new('RGBA', (MAX_X, MAX_Y))
+    MegafonM = Megafon_I.load()
+    
     for x in range(MAX_X):
         for y in range(MAX_Y):
-            IM[x,y] = color(prices[x,y], buckets)
+            AllM[x,y] = color(prices[x,y], buckets)
+            
+            if len(prices_Beeline)>0:
+                BeelineM[x,y] = color(prices_Beeline[x,y], buckets)
+            if len(prices_Mts)>0:
+                MtsM[x,y] = color(prices_Mts[x,y], buckets)
+            if len(prices_Yota)>0:
+                YotaM[x,y] = color(prices_Yota[x,y], buckets)
+            if len(prices_Megafon)>0:
+                MegafonM[x,y] = color(prices_Megafon[x,y], buckets) 
 
     if DRAW_DOTS:
         for _, lat, lon in priced_points:
             x, y = ll_to_pixel(lat, lon)
             if 0 <= x < MAX_X and 0 <= y < MAX_Y:
-                IM[x,y] = (0,0,0)
+                AllM[x,y] = (0,0,0)
+                BeelineM[x,y] = (0,0,0)
+                MtsM[x,y] = (0,0,0)
+                YotaM[x,y] = (0,0,0)
+                MegafonM[x,y] = (0,0,0)
 
-    out_fname = output_dir + "itog" + ".phantom." + str(MAX_X)
-    I.save(out_fname + ".png", "PNG")
+    All_I.save(output_dir + "AllPoint/" + "itog" + ".phantom." + str(MAX_X) + ".AllPoint" + ".png", "PNG")
+    Beeline_I.save(output_dir + "Beeline/" + "itog" + ".phantom." + str(MAX_X) + ".Beeline" + ".png", "PNG")
+    Mts_I.save(output_dir + "Mts/" + "itog" + ".phantom." + str(MAX_X) + ".Mts" + ".png", "PNG")
+    Yota_I.save(output_dir + "Yota/" + "itog" + ".phantom." + str(MAX_X) + ".Yota" + ".png", "PNG")
+    Megafon_I.save(output_dir + "Megafon/" + "itog" + ".phantom." + str(MAX_X) + ".Megafon" + ".png", "PNG")
+    
 
 
 if TAKE_DATA_FROM_GO:
     data, max_LAT, max_LON, min_LAT, min_LON = create_point_for_draw()
     if IGNORE_MAX_MIN_LAT_LON:
         MAX_LAT, MAX_LON, MIN_LAT, MIN_LON = max_LAT, max_LON, min_LAT, min_LON
+        
         
 else:
     with open('data/thermalmapdataall.json', 'r') as f:

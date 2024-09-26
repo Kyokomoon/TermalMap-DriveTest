@@ -31,7 +31,8 @@ def max_min_latlon(data):
 
 def create_point_for_draw():
     data=load_from_go()
-    priced_points = []
+   
+    DATA={'ALL' : [] ,'Beeline' : [], 'Mts' : [], 'Yota' : [], 'Megafon' : []}
     for item in data:
         if float(item['latitude']) > 0 and float(item['longitude']) > 0:
             try:
@@ -43,9 +44,9 @@ def create_point_for_draw():
                         count+=1
                 rsrp = int(summ/count)
                 if count>0:
-                    priced_points.append([rsrp, float(item['latitude']), float(item['longitude'])])
+                    DATA['ALL'].append([rsrp, float(item['latitude']), float(item['longitude'])])
+                    DATA[item['operator']].append([rsrp, float(item['latitude']), float(item['longitude'])])
             except:
                 print("пустое значение")
-    max_LAT, max_LON, min_LAT, min_LON = max_min_latlon(priced_points) 
-    return priced_points, max_LAT, max_LON, min_LAT, min_LON
-
+    max_LAT, max_LON, min_LAT, min_LON = max_min_latlon(DATA['ALL']) 
+    return DATA, max_LAT, max_LON, min_LAT, min_LON
