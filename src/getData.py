@@ -11,6 +11,7 @@ def load_from_go():
         print("Ошибка при отправке запроса. Код ответа:", response.status_code)
         
 
+
 def max_min_latlon(data):
     max_LAT = 0.0
     max_LON = 0.0
@@ -32,7 +33,7 @@ def max_min_latlon(data):
 def create_point_for_draw():
     data=load_from_go()
    
-    DATA={'ALL' : [] ,'Beeline' : [], 'Mts' : [], 'Yota' : [], 'Megafon' : []}
+    DATA={'ALL' : [] ,'Beeline' : [], 'Mts' : [], 'YOTA' : [], 'Megafon' : []}
     for item in data:
         if float(item['latitude']) > 0 and float(item['longitude']) > 0:
             try:
