@@ -1,7 +1,7 @@
 from PIL import Image
 import sys
 import math
-import numpy as np
+import numpy
 import json
 from src.getData import create_point_for_draw
 # set boundaries in query_padmapper
@@ -9,49 +9,19 @@ from src.getData import create_point_for_draw
 
 # change these to change how detailed the generated image is
 # (1000x1000 is good, but very slow)
-MAX_X=256
-MAX_Y=256
+MAX_X=512
+MAX_Y=512
 
-cords = {"Novosibirsk" : [54.75, 82.75, 55.10, 83.25]}
-MIN_LAT, MIN_LON,MAX_LAT,MAX_LON = cords["Novosibirsk"]
-
-def generate_sectors(min_lat, min_lon, max_lat, max_lon):
-    # Шаг для 1 км в широте и долготе
-    # Широта: 1 градус ≈ 111 км
-    lat_step = 1 / 111  # 1 км в градусах широты
-
-    # Долгота: зависит от широты (учтем среднюю широту для точности)
-    avg_lat = (min_lat + max_lat) / 2
-    lon_step = 1 / (111 * np.cos(np.radians(avg_lat)))  # 1 км в градусах долготы
-
-    sectors = []
-    i=0
-    lat = min_lat
-    while lat + lat_step <= max_lat:
-        lon = min_lon
-        while lon + lon_step <= max_lon:
-            # Добавляем сектор в формате (min_lat, min_lon, max_lat, max_lon)
-            i+=1
-            sectors.append({
-                'ID':i,
-                'min_lat': lat,
-                'min_lon': lon,
-                'max_lat': lat + lat_step,
-                'max_lon': lon + lon_step,
-                'points': {'ALL' : [] ,'Beeline' : [], 'Mts' : [], 'YOTA' : [], 'Megafon' : []}
-                
-            })
-            lon += lon_step
-        lat += lat_step
-    
-    return sectors
-sectors = generate_sectors(MIN_LAT, MIN_LON,MAX_LAT,MAX_LON)
 
 #MAX_LAT = 55.0388235
-#MIN_LAT = 54.9693
+#MIN_LAT = 55.007120
+MAX_LAT = 55.0388235
+MIN_LAT = 54.9693
 
 #MAX_LON = 83.0272901
-#MIN_LON = 82.8765452
+#MIN_LON = 82.911715
+MAX_LON = 83.0272901
+MIN_LON = 82.8765452
 
 
 DRAW_DOTS=False
@@ -62,7 +32,7 @@ AVAREGE_DATA=False
 output_dir = "out/"
 
 # at what distance should we stop making predctions?
-IGNORE_DIST=0.001
+IGNORE_DIST=0.0008
 
 def pixel_to_ll(x,y):
     delta_lat = MAX_LAT-MIN_LAT
@@ -103,8 +73,8 @@ def linear_regression(pairs):
   xs = [x for (x,y) in pairs]
   ys = [y for (x,y) in pairs]
 
-  A = np.array([xs, np.ones(len(xs))])
-  w = np.linalg.lstsq(A.T,ys)[0]
+  A = numpy.array([xs, numpy.ones(len(xs))])
+  w = numpy.linalg.lstsq(A.T,ys)[0]
   return w[0], w[1]
 
 def distance_squared(x1,y1,x2,y2):
@@ -502,12 +472,11 @@ def average(priced_points):
             summ = 0
     return averaged_points
     
-def start(sector):
+def start(data):
     print("loading data...")
-    sector_id = sector['ID']
-    data = sector['points']
-    print("sector ID:[]", sector_id)
-    
+   
+     
+        
     priced_points = []
     
     if TAKE_DATA_FROM_GO:
@@ -529,7 +498,7 @@ def start(sector):
     prices_Yota = {}
     prices_Megafon = {}
     for x in range(MAX_X):
-        #print("  %s/%s" % (x, MAX_X))
+        print("  %s/%s" % (x, MAX_X))
         for y in range(MAX_Y):
             lat, lon = pixel_to_ll(x,y)
             prices[x,y] = gaussian(priced_points, lat, lon)
@@ -538,8 +507,8 @@ def start(sector):
                     prices_Beeline[x,y] = gaussian(data['Beeline'], lat, lon)
                 if len(data['Mts']) > 0:
                     prices_Mts[x,y] = gaussian(data['Mts'], lat, lon)
-                if len(data['YOTA']) > 0:
-                    prices_Yota[x,y] = gaussian(data['YOTA'], lat, lon)
+                if len(data['Yota']) > 0:
+                    prices_Yota[x,y] = gaussian(data['Yota'], lat, lon)
                 if len(data['Megafon']) > 0:
                     prices_Megafon[x,y] = gaussian(data['Megafon'], lat, lon)
                 
@@ -582,30 +551,16 @@ def start(sector):
                 YotaM[x,y] = (0,0,0)
                 MegafonM[x,y] = (0,0,0)
 
-    All_I.save(output_dir + "AllPoint/" + str(MAX_X) + "/itog" + str(sector_id) + ".phantom." + str(MAX_X) + ".AllPoint" + ".png", "PNG")
-    Beeline_I.save(output_dir + "Beeline/" + str(MAX_X) + "/itog" + str(sector_id) + ".phantom." + str(MAX_X) + ".Beeline" + ".png", "PNG")
-    Mts_I.save(output_dir + "Mts/" + str(MAX_X) + "/itog" + str(sector_id) + ".phantom." + str(MAX_X) + ".Mts" + ".png", "PNG")
-    Yota_I.save(output_dir + "Yota/" + str(MAX_X) + "/itog" + str(sector_id) + ".phantom." + str(MAX_X) + ".Yota" + ".png", "PNG")
-    Megafon_I.save(output_dir + "Megafon/" + str(MAX_X) + "/itog" + str(sector_id) + ".phantom." + str(MAX_X) + ".Megafon" + ".png", "PNG")
+    All_I.save(output_dir + "AllPoint/" + "itog" + ".phantom." + str(MAX_X) + ".AllPoint" + ".png", "PNG")
+    Beeline_I.save(output_dir + "Beeline/" + "itog" + ".phantom." + str(MAX_X) + ".Beeline" + ".png", "PNG")
+    Mts_I.save(output_dir + "Mts/" + "itog" + ".phantom." + str(MAX_X) + ".Mts" + ".png", "PNG")
+    Yota_I.save(output_dir + "Yota/" + "itog" + ".phantom." + str(MAX_X) + ".Yota" + ".png", "PNG")
+    Megafon_I.save(output_dir + "Megafon/" + "itog" + ".phantom." + str(MAX_X) + ".Megafon" + ".png", "PNG")
     
 
 
 if TAKE_DATA_FROM_GO:
     data, max_LAT, max_LON, min_LAT, min_LON = create_point_for_draw()
-    sectors_id = []
-    print("Происходит разбивка карты на сектора")
-    for item in sectors:
-        if ((item['min_lat']>=min_LAT and item['min_lon']>=min_LON) and (item['min_lat']<=max_LAT and item['min_lon']<=max_LON))or((item['max_lat']<=max_LAT and item['min_lon']>=min_LON)and(item['max_lat']>=min_LAT and item['min_lon']<=max_LON))or((item['max_lat']<=max_LAT and item['max_lon']<=max_LON)and(item['max_lat']>=min_LAT and item['max_lon']>=min_LON))or((item['min_lat']>=min_LAT and item['max_lon']<=max_LON)and(item['min_lat']<=max_LAT and item['max_lon']>=min_LON)):  
-            for operator in data:
-                for point in data[operator]:
-                    test = point
-                    if (point[1]>=item['min_lat'] and point[1]<=item['max_lat']) and (point[2]>=item['min_lon'] and point[2]<=item['max_lon']):
-                        item['points'][operator].append(point)
-                        item['points']['ALL'].append(point)
-                        
-            sectors_id.append(item)
-    print("Будет отрисовано ", len(sectors_id),"секторов")
-            
     if IGNORE_MAX_MIN_LAT_LON:
         MAX_LAT, MAX_LON, MIN_LAT, MIN_LON = max_LAT, max_LON, min_LAT, min_LON
         
@@ -614,9 +569,5 @@ else:
     with open('data/thermalmapdataall.json', 'r') as f:
         data = json.load(f)
 
-for sector in sectors_id:
-    MIN_LAT = sector['min_lat']
-    MIN_LON = sector['min_lon']
-    MAX_LAT = sector['max_lat']
-    MAX_LON = sector['max_lon']
-    start(sector)
+
+start(data)
