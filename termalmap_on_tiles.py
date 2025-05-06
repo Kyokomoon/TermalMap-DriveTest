@@ -6,12 +6,15 @@ import json
 import numpy as np
 import matplotlib.pyplot as plt
 import multiprocessing as mp  # Добавлено для параллельной обработки
-
+from functools import partial
+from src.getData import create_point_for_draw
+DROW_ALL_POINT = True
+DROW_OPERATORS = True
 zoom=16
-MAX_LAT = 55.0388235
-MIN_LAT = 54.9693
-MAX_LON = 83.0272901
-MIN_LON = 82.8765452
+MAX_LAT = 55.150
+MIN_LAT = 54.800
+MAX_LON = 83.100
+MIN_LON = 82.700
 MAX_X = 256
 MAX_Y = 256
 output_dir = "out/"
@@ -26,12 +29,18 @@ def load_data(file_path):
     for item in data:
         try:
             if int(item['rsrp']) <= -60 and int(item['rsrp']) >= -120 and (float(item["latitude"]) >= MIN_LAT and float(item["latitude"]) <= MAX_LAT and float(item["longitude"]) >= MIN_LON and float(item["longitude"]) <= MAX_LON):
-                priced_points.append([int(item['rsrp']), float(item["latitude"]), float(item["longitude"]),int(item['rsrq'])])
+                priced_points.append([int(item['rsrp']), float(item["latitude"]), float(item["longitude"]),int(item['rsrq']), int(item['rssi'])])
         except:
             pass
     return priced_points
-
-
+      
+def point_per_operator(data, operator):
+    sorted_poits = []
+    for point in data:
+        if point[-1] == operator:
+            sorted_poits.append(point)
+    return sorted_poits
+            
 def deg2num(lat_deg, lon_deg, zoom):
     lat_rad = math.radians(lat_deg)
     n = 1 << zoom
@@ -72,6 +81,7 @@ def haversine_distance(lat1, lon1, lat2, lon2, to_radians=True, earth_radius=637
     else:
         return earth_radius * 2 * np.arcsin(np.sqrt(a))
 
+import numpy as np
 def get_gradient_color(value, vmin, vmax, cmap_name):
     if value:
         norm_value = (value - vmin) / (vmax - vmin)
@@ -85,6 +95,14 @@ def get_gradient_color(value, vmin, vmax, cmap_name):
         return tuple_color
     else:
         return (0, 0, 0, 1)  # Черный цвет, если значение пустое
+with open("magma_pci.txt", "w") as file:
+    for i in range(0, 503):
+        output = f"magma pci = {i}: "
+        x = get_gradient_color(i, -21, -2, 'magma')
+        output2 = f"{x}"
+        print(output)
+        print(output2)
+        file.write(output + "\n" + output2 + "\n")  # Записываем в файл, добавляя перевод строки
     
 def calculate_price(points, lat, lon,tile_cord_XX, tile_cord_XY,tile_cord_YX,tile_cord_YY, field_name):
     values = []
@@ -93,34 +111,56 @@ def calculate_price(points, lat, lon,tile_cord_XX, tile_cord_XY,tile_cord_YX,til
         if d <= 15:
             if field_name == "rsrp" :
                 values.append(point[0])
-            else:
+            elif field_name == "rsrq" :
                 values.append(point[3])
+            elif field_name == "rssnr":
+                values.append(point[4])
+            elif field_name == "pci":
+                values.append(point[5])
+            elif field_name == "pci_mod_3":
+                values.append(point[6])
+            else:
+                values.append(point[7])
+            
+            
     if values:
         average = np.mean(values)
         if field_name == "rsrp":
             return average if average <= -5 else None
-        if field_name == "rsrq":
+        elif field_name == "rsrq":
             return average if average <= 0 else None
+        elif field_name == "rssnr":
+            return average if average <= 20 else None
+        else:
+            return average
     return 0
 
-
-def drow_map(tile):
+    
+def drow_map(tile, operator):
     points = tile["points"]
-    delta = {'rsrp' : [-120,-60], 'rsrq' : [-21, -2]}
+    delta = {'rsrp' : [-120,-60], 'rsrq' : [-21, -2], 'rssnr' : [-20,20], 'pci' : [0,502], 'pci_mod_3' : [0,2], 'pci_mod_6' : [0,5]}
     tile_cord_XX = tile["cords"][1]
     tile_cord_XY = tile["cords"][0]
     tile_cord_YX = tile["cords"][3]
     tile_cord_YY = tile["cords"][2]
-    fields = ["rsrp", "rsrq"]
+    fields = ["rsrp", "rsrq", "rssnr", "pci", "pci_mod_3", "pci_mod_6"]
     prices = np.zeros((MAX_X, MAX_Y))  # Используем массив NumPy для хранения цен
     prices_q = np.zeros((MAX_X, MAX_Y))
+    prices_snr = np.zeros((MAX_X, MAX_Y))  # Используем массив NumPy для хранения цен
+    prices_pci = np.zeros((MAX_X, MAX_Y))  # Используем массив NumPy для хранения цен
+    prices_pci3 = np.zeros((MAX_X, MAX_Y))  # Используем массив NumPy для хранения цен
+    prices_pci6 = np.zeros((MAX_X, MAX_Y))  # Используем массив NumPy для хранения цен
+    
     for x in range(MAX_X):
         for y in range(MAX_Y):
             lat, lon = pixel_to_ll(x, y, tile_cord_XX, tile_cord_XY, tile_cord_YX, tile_cord_YY)
             prices[x, y] = calculate_price(points, lat, lon, tile_cord_XX, tile_cord_XY, tile_cord_YX, tile_cord_YY, fields[0])
             prices_q[x, y] = calculate_price(points, lat, lon, tile_cord_XX, tile_cord_XY, tile_cord_YX, tile_cord_YY, fields[1])
-            
-    priced = {'rsrp' : prices, 'rsrq' : prices_q}
+            prices_snr[x, y] = calculate_price(points, lat, lon, tile_cord_XX, tile_cord_XY, tile_cord_YX, tile_cord_YY, fields[2])
+            prices_pci[x, y] = calculate_price(points, lat, lon, tile_cord_XX, tile_cord_XY, tile_cord_YX, tile_cord_YY, fields[3])
+            prices_pci3[x, y] = calculate_price(points, lat, lon, tile_cord_XX, tile_cord_XY, tile_cord_YX, tile_cord_YY, fields[4])
+            prices_pci6[x, y] = calculate_price(points, lat, lon, tile_cord_XX, tile_cord_XY, tile_cord_YX, tile_cord_YY, fields[5])
+    priced = {'rsrp' : prices, 'rsrq' : prices_q, 'rssnr' : prices_snr, 'pci' : prices_pci, 'pci_mod_3' : prices_pci3, 'pci_mod_6' : prices_pci6}
     # Цветовые карты для сохранения
     color_maps = ['magma', 'jet']
     
@@ -133,15 +173,15 @@ def drow_map(tile):
                     pixels[x, y] = get_gradient_color(priced[field][x, y], delta[field][0], delta[field][1], cmap_name)
             
             # Создаем папку для каждой карты
-            folder_path = os.path.join(output_dir, field, cmap_name, str(tile["z"]), str(tile["x"]))
+            folder_path = os.path.join(output_dir, operator, field, cmap_name, str(tile["z"]), str(tile["x"]))
             os.makedirs(folder_path, exist_ok=True)
             file_path = os.path.join(folder_path, f"{tile['y']}.png")
             img.save(file_path, "PNG")
     
 
 
-def process_tile(tile):
-    drow_map(tile)
+def process_tile(tile, operator):
+    drow_map(tile, operator)
 
 def get_neighbors(tile):
     """Возвращает список соседних тайлов для данного тайла."""
@@ -190,11 +230,32 @@ def get_tiles(priced_points):
 
 
 if __name__ == "__main__":
-    for i in range(13,19):
-        zoom = i
-        priced_points = load_data('data/thermalmapdataall.json')
-        tiles = get_tiles(priced_points)
-        print("Отрисовываются ", len(tiles), "тайлов для zoom= ", zoom)
-        # Параллельная обработка тайлов с использованием пула процессов
-        with mp.Pool(mp.cpu_count()) as pool:
-            pool.map(process_tile, tiles)
+    operators = ['MTS', 'Beeline', 'YOTA', 'Megafon']
+    #priced_points = load_data('data/thermalmapdataall.json')
+    #=create_test_data(priced_points)
+    print("Импорт точек из БД")
+    priced_points = create_point_for_draw()
+    print("Успешно\n Отрисовываются все точки: ", len(priced_points))
+    if DROW_ALL_POINT == True:
+        for i in range(12,19):
+            zoom = i
+            tiles = get_tiles(priced_points)
+            print("Отрисовываются ", len(tiles), "тайлов для zoom >> ", zoom)
+            process_with_operator = partial(process_tile, operator="ALL")
+            # Параллельная обработка тайлов с использованием пула процессов
+            with mp.Pool(mp.cpu_count()) as pool:
+                pool.map(process_with_operator, tiles)
+    if DROW_OPERATORS == True:
+        print("\nОтрисовываются точки по операторам")
+        for operator in operators:
+            print("\nОтрисовывается >> ", operator)   
+            priced_points = point_per_operator(priced_points, operator)
+            if len(priced_points) > 0:
+                for i in range(12,19):
+                    zoom = i
+                    tiles = get_tiles(priced_points)
+                    print("Отрисовываются ", len(tiles), "тайлов для zoom= ", zoom)
+                    process_with_operator = partial(process_tile, operator=operator)
+                    # Параллельная обработка тайлов с использованием пула процессов
+                    with mp.Pool(mp.cpu_count()) as pool:
+                        pool.map(process_with_operator, tiles)

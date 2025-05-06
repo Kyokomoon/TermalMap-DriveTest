@@ -1,5 +1,11 @@
 import requests
-
+import psycopg2
+MAX_LAT = 55.150
+MIN_LAT = 54.800
+MAX_LON = 83.100
+MIN_LON = 82.700
+MAX_X = 256
+MAX_Y = 256
 def load_from_go():
     url = "http://78.24.222.170:8080/api/sockets/thermalmapdataall"
     response = requests.get(url)
@@ -10,6 +16,44 @@ def load_from_go():
     else:
         print("Ошибка при отправке запроса. Код ответа:", response.status_code)
         
+
+def load_from_postgress():
+    # Параметры подключения к базе данных
+    db_config = {
+        "dbname": "thermal_map_data_legacy",           # Имя базы данных
+        "user": "postgres",             # Имя пользователя
+        "password": "aqDAzZgBybD5AS/PxEBNFia4Xvx0wWxDeLr0pwGIihY=",  # Пароль
+        "host": "109.172.114.128",      # IP адрес
+        "port": "5432"                  # Порт
+    }
+    try:
+        # Подключение к базе данных
+        connection = psycopg2.connect(**db_config)
+        cursor = connection.cursor()
+        query = """
+        SELECT type, registered, mcc, mnc,ci, pci,earfcn,rsrp,rssi,rsrq,rssnr,cqi, time, latitude, longitude, operator
+        FROM lte_data 
+        JOIN message2 ON message2.id = lte_data.request_id
+        WHERE registered = true;
+        """
+        cursor.execute(query)
+        # Выполнение SQL-запроса
+        cursor.execute(query)  # Замените на фактическое имя таблицы
+    
+        # Получение данных
+        rows = cursor.fetchall()
+        return rows
+    
+    except Exception as e:
+        print(f"Ошибка при подключении к базе данных: {e}")
+    
+    finally:
+        # Закрытие курсора и подключения
+        if cursor:
+            cursor.close()
+        if connection:
+            connection.close()
+    return 0
 
 
 def max_min_latlon(data):
@@ -31,23 +75,12 @@ def max_min_latlon(data):
     return max_LAT, max_LON, min_LAT, min_LON 
 
 def create_point_for_draw():
-    data=load_from_go()
-   
-    DATA={'ALL' : [] ,'Beeline' : [], 'Mts' : [], 'YOTA' : [], 'Megafon' : []}
+    points = []
+    data = load_from_postgress()
     for item in data:
-        if float(item['latitude']) > 0 and float(item['longitude']) > 0:
-            try:
-                count = 0
-                summ = 0
-                for point in item['lte']:
-                    if int(point["rsrp"]) <= -60 and int(point["rsrp"]) >= -125:
-                        summ+=int(point["rsrp"])
-                        count+=1
-                rsrp = int(summ/count)
-                if count>0:
-                    DATA['ALL'].append([rsrp, float(item['latitude']), float(item['longitude'])])
-                    DATA[item['operator']].append([rsrp, float(item['latitude']), float(item['longitude'])])
-            except:
-                print("пустое значение")
-    max_LAT, max_LON, min_LAT, min_LON = max_min_latlon(DATA['ALL']) 
-    return DATA, max_LAT, max_LON, min_LAT, min_LON
+        try:
+            if int(item[7]) <= -60 and int(item[7]) >= -120 and (float(item[13]) >= MIN_LAT and float(item[13]) <= MAX_LAT and float(item[14]) >= MIN_LON and float(item[14]) <= MAX_LON):
+                points.append([int(item[7]), float(item[13]), float(item[14]),int(item[9]), int(item[10]), int(item[5]), int(item[5]) % 3, int(item[5]) % 6,item[-1]])
+        except:
+            pass
+    return points
